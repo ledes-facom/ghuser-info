@@ -1,4 +1,6 @@
-#!/usr/bin/env node
+/**
+ * Author: Hudson Silva Borges
+ */
 import { GraphQLClient, gql } from "graphql-request";
 import { has, size } from "lodash";
 import { Argument, Option, program } from "commander";
