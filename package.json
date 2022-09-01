@@ -13,6 +13,8 @@
   },
   "license": "MIT",
   "scripts": {
+    "start": "./bin/ghuser-info",
+    "dev": "ts-node -T src/index.ts",
     "build": "tsc",
     "prepare": "husky install",
     "test": ""
