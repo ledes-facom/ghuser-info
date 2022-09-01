@@ -20,8 +20,8 @@
     "dev": "ts-node -T src/index.ts",
     "build": "tsc",
     "prepare": "husky install",
-    "test": "",
-    "release": "np"
+    "release": "np --no-tests",
+    "np": "npm rum release"
   },
   "devDependencies": {
     "@commitlint/cli": "^17.1.2",
