@@ -20,7 +20,7 @@
     "dev": "ts-node -T src/index.ts",
     "build": "tsc",
     "prepare": "husky install",
-    "release": "np --no-tests",
+    "release": "np --no-tests --message 'chore: v%s'",
     "np": "npm rum release"
   },
   "devDependencies": {
