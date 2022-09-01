@@ -9,6 +9,11 @@ import { join } from "path";
 import consola from "consola";
 import open from "open";
 import { config } from "dotenv";
+import { mapSeries } from "bluebird";
+import { writeToPath } from "@fast-csv/format";
+import AdmZip from "adm-zip";
+
+config();
 
 const query = gql`
   query ($user: String!) {
@@ -171,7 +176,8 @@ async function getUserInformation(user: string, client: GraphQLClient) {
   return client.request(query, { user }).then((res) => res.user);
 }
 
-config();
+const Formats = { json: "json", csv: "csv", "json-per-user": "zip" };
+const { version } = require("../package.json");
 
 program
   .addArgument(new Argument("<users...>"))
@@ -187,12 +193,23 @@ program
       "Directory to save the resulting json files"
     ).default(process.cwd())
   )
+  .addOption(
+    new Option("--format <format>", "File format")
+      .choices(Object.keys(Formats))
+      .default(Object.keys(Formats).at(0))
+  )
   .action(
-    async (users: string[], opts: { token: string; outputDir: string }) => {
-      const outputDir = join(opts.outputDir, "data");
-
-      consola.info(`Resolving output dir (${outputDir}) ...`);
-      if (!existsSync(outputDir)) mkdirSync(outputDir, { recursive: true });
+    async (
+      users: string[],
+      opts: {
+        token: string;
+        outputDir: string;
+        format: "json" | "json-per-user" | "csv";
+      }
+    ) => {
+      consola.info(`Resolving output dir (${opts.outputDir}) ...`);
+      if (!existsSync(opts.outputDir))
+        mkdirSync(opts.outputDir, { recursive: true });
 
       consola.info("Creating graphql client ....");
       const client = new GraphQLClient("https://api.github.com/graphql", {
@@ -212,19 +229,47 @@ program
         headers: { Authorization: `bearer ${opts.token}` },
       });
 
-      for (const user of users) {
+      const data = await mapSeries(users, (user) => {
         consola.info(`Requesting information from ${user} ...`);
-        writeFileSync(
-          join(outputDir, `${user}.json`),
-          JSON.stringify(await getUserInformation(user, client), null, "  ")
-        );
+        return getUserInformation(user, client);
+      });
+
+      const fileName = `ghuserinfo-${Date.now()}.${Formats[opts.format]}`;
+      const fileDest = join(opts.outputDir, fileName);
+
+      consola.info(`Writing results to ${fileName} ...`);
+      switch (opts.format) {
+        case "json": {
+          writeFileSync(fileDest, JSON.stringify(data, null, "  "));
+          break;
+        }
+
+        case "csv": {
+          writeToPath(fileDest, data, { headers: true });
+          break;
+        }
+
+        case "json-per-user": {
+          const zip = new AdmZip();
+          data.forEach((content, index) =>
+            zip.addFile(
+              `${users[index]}.json`,
+              Buffer.from(JSON.stringify(content, null, "  "))
+            )
+          );
+          await zip.writeZipPromise(fileDest);
+          break;
+        }
+
+        default:
+          throw new Error("Unknown file format!");
       }
 
       consola.info("Opening output directory ...");
-      await open(outputDir);
+      await open(opts.outputDir);
 
       consola.success("Done!");
     }
   )
-  .version("0.0.1")
+  .version(version)
   .parse(process.argv);

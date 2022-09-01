@@ -23,6 +23,10 @@ const path_1 = require("path");
 const consola_1 = __importDefault(require("consola"));
 const open_1 = __importDefault(require("open"));
 const dotenv_1 = require("dotenv");
+const bluebird_1 = require("bluebird");
+const format_1 = require("@fast-csv/format");
+const adm_zip_1 = __importDefault(require("adm-zip"));
+(0, dotenv_1.config)();
 const query = (0, graphql_request_1.gql) `
   query ($user: String!) {
     user(login: $user) {
@@ -184,7 +188,8 @@ function getUserInformation(user, client) {
         return client.request(query, { user }).then((res) => res.user);
     });
 }
-(0, dotenv_1.config)();
+const Formats = { json: "json", csv: "csv", "json-per-user": "zip" };
+const { version } = require("../package.json");
 commander_1.program
     .addArgument(new commander_1.Argument("<users...>"))
     .addHelpCommand()
@@ -192,11 +197,13 @@ commander_1.program
     .env("TOKEN")
     .makeOptionMandatory())
     .addOption(new commander_1.Option("--outputDir <dir>", "Directory to save the resulting json files").default(process.cwd()))
+    .addOption(new commander_1.Option("--format <format>", "File format")
+    .choices(Object.keys(Formats))
+    .default(Object.keys(Formats).at(0)))
     .action((users, opts) => __awaiter(void 0, void 0, void 0, function* () {
-    const outputDir = (0, path_1.join)(opts.outputDir, "data");
-    consola_1.default.info(`Resolving output dir (${outputDir}) ...`);
-    if (!(0, fs_1.existsSync)(outputDir))
-        (0, fs_1.mkdirSync)(outputDir, { recursive: true });
+    consola_1.default.info(`Resolving output dir (${opts.outputDir}) ...`);
+    if (!(0, fs_1.existsSync)(opts.outputDir))
+        (0, fs_1.mkdirSync)(opts.outputDir, { recursive: true });
     consola_1.default.info("Creating graphql client ....");
     const client = new graphql_request_1.GraphQLClient("https://api.github.com/graphql", {
         jsonSerializer: {
@@ -213,13 +220,34 @@ commander_1.program
         },
         headers: { Authorization: `bearer ${opts.token}` },
     });
-    for (const user of users) {
+    const data = yield (0, bluebird_1.mapSeries)(users, (user) => {
         consola_1.default.info(`Requesting information from ${user} ...`);
-        (0, fs_1.writeFileSync)((0, path_1.join)(outputDir, `${user}.json`), JSON.stringify(yield getUserInformation(user, client), null, "  "));
+        return getUserInformation(user, client);
+    });
+    const fileName = `ghuserinfo-${Date.now()}.${Formats[opts.format]}`;
+    const fileDest = (0, path_1.join)(opts.outputDir, fileName);
+    consola_1.default.info(`Writing results to ${fileName} ...`);
+    switch (opts.format) {
+        case "json": {
+            (0, fs_1.writeFileSync)(fileDest, JSON.stringify(data, null, "  "));
+            break;
+        }
+        case "csv": {
+            (0, format_1.writeToPath)(fileDest, data, { headers: true });
+            break;
+        }
+        case "json-per-user": {
+            const zip = new adm_zip_1.default();
+            data.forEach((content, index) => zip.addFile(`${users[index]}.json`, Buffer.from(JSON.stringify(content, null, "  "))));
+            yield zip.writeZipPromise(fileDest);
+            break;
+        }
+        default:
+            throw new Error("Unknown file format!");
     }
     consola_1.default.info("Opening output directory ...");
-    yield (0, open_1.default)(outputDir);
+    yield (0, open_1.default)(opts.outputDir);
     consola_1.default.success("Done!");
 }))
-    .version("0.0.1")
+    .version(version)
     .parse(process.argv);
