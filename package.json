@@ -1,5 +1,5 @@
 {
-  "name": "ghuser-info",
+  "name": "@ledes-facom/ghuser-info",
   "version": "0.0.1",
   "main": "src/index.ts",
   "bin": {
@@ -9,7 +9,10 @@
     "name": "Hudson Silva Borges"
   },
   "repository": {
-    "url": "https://github.com/ledes-facom/ghuser-info"
+    "url": "https://github.com/ledes-facom/ghuser-info.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
   },
   "license": "MIT",
   "scripts": {
@@ -17,7 +20,8 @@
     "dev": "ts-node -T src/index.ts",
     "build": "tsc",
     "prepare": "husky install",
-    "test": ""
+    "test": "",
+    "release": "np"
   },
   "devDependencies": {
     "@commitlint/cli": "^17.1.2",
@@ -28,6 +32,7 @@
     "commitlint": "^17.1.2",
     "cz-conventional-changelog": "3.3.0",
     "husky": "^8.0.0",
+    "np": "^7.6.2",
     "ts-node": "^10.9.1",
     "typescript": "^4.8.2"
   },
