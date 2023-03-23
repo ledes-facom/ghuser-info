@@ -173,7 +173,7 @@ const query = gql`
 `;
 
 async function getUserInformation(user: string, client: GraphQLClient) {
-  return client.request(query, { user }).then((res) => res.user);
+  return client.request<any>(query, { user }).then((res) => res.user);
 }
 
 const Formats = { json: "json", csv: "csv", "json-per-user": "zip" };
