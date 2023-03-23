@@ -1,6 +1,6 @@
 {
   "name": "@ledes-facom/ghuser-info",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "main": "src/index.ts",
   "bin": {
     "ghuser-info": "bin/ghuser-info"
